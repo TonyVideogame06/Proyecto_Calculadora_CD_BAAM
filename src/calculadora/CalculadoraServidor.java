@@ -5,93 +5,78 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.sql.Timestamp;
+import java.util.Date;
 
 public class CalculadoraServidor {
 
-    public static double Operaciones(String CalcularOperaciones){
-
-        String[] numeroOperadorSplit = CalcularOperaciones.split(",");
-        double primerNumero = Double.parseDouble(numeroOperadorSplit[2]);
-        double segundoNumero = Double.parseDouble(numeroOperadorSplit[3]);
-        String operador = numeroOperadorSplit[1];
-        double respuesta=0;
-        switch(operador) {
-            case "1":
-                respuesta = primerNumero + segundoNumero;
-                break;
-            case "2":
-                respuesta = primerNumero - segundoNumero;
-                break;
-            case "3":
-                respuesta = primerNumero * segundoNumero;
-                break;
-            case "4":
-                if(segundoNumero==0){
-                    System.out.println("ERROR Vuelva a intentarlo");
-                    return -1; //Error
-                }
-                respuesta = primerNumero / segundoNumero;
-                break;
-
+    static public ServerSocket create(int[] ports) throws IOException {
+        for (int port : ports) {
+            try {
+                return new ServerSocket(port);
+            } catch (IOException ex) {
+                continue; // try next port
+            }
         }
-        return respuesta;
+
+        // if the program gets here, no port in the range was found
+        throw new IOException("no free port found");
     }
 
     public static void main(String[] args) throws IOException {
+        int puertos[] = new int[1000];
 
-        ServerSocket servidor = null;
-        Socket servidorSocket = null;
+        for(int i=0;i<puertos.length; i++)
+        {
+            puertos[i]=i+7000;
+        }
+        ServerSocket Servidor = create(puertos);
+
+        String mensaje="";
+        final String HOST ="0.0.0.0";
+        int PUERTO =8000;
         DataInputStream in;
         DataOutputStream out;
-        int puertoServidorMin = 6000;
-        int puertoServidorMax = 6100;
-        int puertoServidorActual = puertoServidorMin;
-        boolean isServer;
-        int localSocketPort;
-        int totalConnections;
-        Socket localSocket;
-        Socket dummySocket;
-        //puerto de nuestro servidor
-        //final int PUERTO = 5000;
+        var Buscando=true;
+        //Sacamos el timestamp para saber cuando se creo el servidor
+        Timestamp newTimeStampMillis =new Timestamp(System.currentTimeMillis());
+        Date clientCreationDate =new Date(newTimeStampMillis.getTime());
+        String stringClientCreationDate = clientCreationDate.toString();
+
+        while(Buscando){
             try {
-                //Creamos el socket del servidor
-                isServer = true;
-                servidor = new ServerSocket(puertoServidorActual);
-                System.out.println("Servidor iniciado");
+                Socket s = new Socket(HOST,PUERTO);
+                in = new DataInputStream(s.getInputStream());
+                out = new DataOutputStream(s.getOutputStream());
 
-                //Siempre estara escuchando peticiones
-                while (true) {
+                out.writeUTF("0010 "+Servidor.getLocalPort());
 
-                    //Espero a que el nodo se conecte
-                    servidorSocket = servidor.accept();
-
-                    System.out.println("Cliente conectado");
-                    in = new DataInputStream(servidorSocket.getInputStream());
-                    out = new DataOutputStream(servidorSocket.getOutputStream());
-                    //Leo la operacion que realizo la calculadora que me envia el nodo
-                    //String mensaje1 = in.readUTF();
-                    //System.out.println("El servidor recibio del nodo el resultado de la operacion " + mensaje1);
-
-                    //Leo el numero que me envia el nodo
-                    //String mensaje2 = in.readUTF();
-
-                    //System.out.println("Servidor recibe del nodo el numero: " + mensaje2);
-                    String numeroOperadorACalcular = in.readUTF();
-                    System.out.println(numeroOperadorACalcular);
-                    String resultado = String.valueOf(Operaciones(numeroOperadorACalcular));
-                    System.out.println(resultado);
-                    out.writeUTF(resultado);
-                    //Cierro el socket
-                    servidorSocket.close();
-                    System.out.println("Nodo desconectado");
+                mensaje = in.readUTF();
+                System.out.println(mensaje);
+                if (Integer.parseInt(mensaje) !=0)
+                {
+                    System.out.println(PUERTO);
+                    System.out.println(mensaje);
+                    Buscando = false;
+                    break;
                 }
+                s.close();
 
             } catch (IOException ex) {
-                Logger.getLogger(CalculadoraServidor.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("No se pudo conectar");
             }
+            PUERTO=PUERTO+200;
+            if (PUERTO>60000)
+            {
+                Buscando = false;
+            }
+        }
+
+        ReceiveData Serv= new ReceiveData(Servidor);
+        int myPort = Serv.SocketServidor.getLocalPort();
+        Thread llegada = new Thread(Serv);
+
+        llegada.start();
 
 
     }

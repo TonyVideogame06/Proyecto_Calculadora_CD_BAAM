@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox prefHeight="774.0" prefWidth="659.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="calculadora.Controller">
+  <children>
+    <AnchorPane maxHeight="-1.0" maxWidth="-1.0" minHeight="-Infinity" minWidth="-Infinity" prefHeight="741.0" prefWidth="659.0" VBox.vgrow="ALWAYS">
+      <children>
+          <Button layoutX="32.0" layoutY="94.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="1" />
+            <Button layoutX="102.0" layoutY="94.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="2" />
+            <Button layoutX="172.0" layoutY="94.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="3" />
+            <Button layoutX="32.0" layoutY="155.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="4" />
+            <Button layoutX="102.0" layoutY="155.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="5" />
+            <Button layoutX="172.0" layoutY="155.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="6" />
+            <Button layoutX="32.0" layoutY="212.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="7" />
+            <Button layoutX="102.0" layoutY="212.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="8" />
+            <Button layoutX="172.0" layoutY="212.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="9" />
+            <Button layoutX="32.0" layoutY="271.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="0" />
+            <Button layoutX="102.0" layoutY="271.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="." />
+            <Button layoutX="248.0" layoutY="94.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="+" />
+            <Button layoutX="248.0" layoutY="155.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="*" />
+            <Button layoutX="320.0" layoutY="94.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="-" />
+            <Button layoutX="320.0" layoutY="155.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="50.0" text="/" />
+            <Button layoutX="248.0" layoutY="212.0" mnemonicParsing="false" onAction="#BotonBorrar" prefHeight="42.0" prefWidth="123.0" text="AC" />
+            <TextField fx:id="ResultadoTotal" layoutX="31.0" layoutY="33.0" prefHeight="26.0" prefWidth="345.0" />
+            <Label layoutX="31.0" layoutY="330.0" text="Suma" />
+            <Label layoutX="31.0" layoutY="446.0" text="Resta" />
+            <Label layoutX="31.0" layoutY="572.0" text="Multiplicación" />
+            <Label layoutX="32.0" layoutY="661.0" prefHeight="26.0" prefWidth="54.0" text="División" />
+            <Button layoutX="248.0" layoutY="271.0" mnemonicParsing="false" onAction="#BotonesNumerosOperadoresIgual" prefHeight="42.0" prefWidth="123.0" text="Enviar" />
+            <TextArea fx:id="ResultSuma" layoutX="29.0" layoutY="350.0" prefHeight="89.0" prefWidth="590.0" />
+            <TextArea fx:id="ResultResta" layoutX="29.0" layoutY="464.0" prefHeight="96.0" prefWidth="590.0" />
+            <TextArea fx:id="ResultMultiplicacion" layoutX="29.0" layoutY="597.0" prefHeight="64.0" prefWidth="590.0" />
+            <TextArea fx:id="ResultDivivision" layoutX="35.0" layoutY="687.0" prefHeight="64.0" prefWidth="590.0" />
+      </children>
+    </AnchorPane>
+  </children>
+</VBox>
