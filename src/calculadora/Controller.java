@@ -1,83 +1,123 @@
 package calculadora;
 
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.application.Platform;
+import javafx.scene.control.Alert.AlertType;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
-/**
- * FXML Controller class
- *
- * @author Hp
- */
+import static org.apache.commons.io.FileUtils.copyDirectory;
+
 public class Controller implements Initializable {
 
-    String suma="";
-    String resta="";
-    String multiplicacion ="";
-    String division ="";
+    String acumulate ="";
+    int goToNode =0;
+    @FXML
+    private Button num1;
+    @FXML
+    private Button num2;
+    @FXML
+    private Button num3;
+    @FXML
+    private Button num4;
+    @FXML
+    private Button num5;
+    @FXML
+    private Button num6;
+    @FXML
+    private Button num7;
+    @FXML
+    private Button num8;
+    @FXML
+    private Button num9;
+    @FXML
+    private Button num0;
+    @FXML
+    private Button punt;
+    @FXML
+    private Button bora;
+    @FXML
+    private Button suma;
+    @FXML
+    private Button rest;
+    @FXML
+    private Button mult;
+    @FXML
+    private Button divi;
+    @FXML
+    private TextField ResultadoTotal;
+    @FXML
+    private TextArea showAnswerOnClientSuma;
+    @FXML
+    private TextArea showAnswerOnClientResta;
+    @FXML
+    private TextArea showAnswerOnClientMultiplicacion;
+    @FXML
+    private TextArea showAnswerOnClientDivisiones;
+
     double makeDoubleNum =0;
-    String operacion="";
-    //Listas y arrays para operaciones
-    List<String> Sumas = new ArrayList<String>();
-    List<String> Restas = new ArrayList<String>();
-    List<String> Multiplicaciones= new ArrayList<String>();
-    List<String> Divisiones = new ArrayList<String>();
-    static String value="";
-    static ArrayList<String> aux = new ArrayList<>();
-    static ArrayList<String> serverAcuses = new ArrayList<>();
-    static ArrayList<String> listServers = new ArrayList<>();
-    static ArrayList<String> listClients = new ArrayList<>();
+    char operation ='0';
+    int i = 1;
+    int localPort;
+    Thread TReceiveMessage;
+    String hashSHA1;
+    static String my_path = "D:/Documentos/UniversidadPanamericana/Semestres/Computo Distribuido/Proyecto/Proyecto_Calculadora_ArandaMejiaBrianAntonio/out/artifacts/";
+    static String general_folder = "CalculadoraServidor";
+    static String my_folder = "CalculadoraServidor";
     static ArrayList<String> listEventSuma = new ArrayList<>();
     static ArrayList<String> listEventResta = new ArrayList<>();
     static ArrayList<String> listEventMultiplicacion = new ArrayList<>();
     static ArrayList<String> listEventDivision = new ArrayList<>();
-    //TIMESTAMP
-    static Timestamp newTimeStampMillis =new Timestamp(System.currentTimeMillis());
-    static  Date clientCreationDate =new Date(newTimeStampMillis.getTime());
-    static String stringClientCreationDate = clientCreationDate.toString();
-    //////////////
-    String acumulate ="";
-    //Puerto del nodo a conectar
-    int goToNode =0;
+    List<tempEvent> listSumas = new ArrayList<tempEvent>();
+    List<tempEvent> listRestas = new ArrayList<tempEvent>();
+    List<tempEvent> listMultiplicaciones = new ArrayList<tempEvent>();
+    List<tempEvent> listDivisiones = new ArrayList<tempEvent>();
+    List<Servers> ServersSumas = new ArrayList<Servers>();
+    List<Servers> ServersRestas = new ArrayList<Servers>();
+    List<Servers> ServersMultiplicaciones = new ArrayList<Servers>();
+    List<Servers> ServersDivisiones = new ArrayList<Servers>();
     int incrementEvent =0;
     int folioSuma = 0;
     int folioResta = 0;
     int folioMultiplicacion = 0;
     int folioDivision = 0;
 
-    @FXML
-    private TextField ResultadoTotal;
-    @FXML
-    private TextArea ResultSuma;
-    @FXML
-    private TextArea ResultResta;
-    @FXML
-    private TextArea ResultMultiplicacion;
-    @FXML
-    private TextArea ResultDivivision;
+    public class Servers {
+        String Server;
+        boolean doesItAppear;
+    }
 
-    //Funcion para crear ss con el puerto bueno
+    public class tempEvent
+    {
+        int tempNumEvent;
+        String operation;
+        public double answer = -123;
+
+        public tempEvent(int number, String operation)
+        {
+            tempNumEvent = number;
+            this.operation = operation;
+        }
+    }
+
+    int resultReceivedSumas = 0;
+    int resultReceivedRestas = 0;
+    int resultReceivedMultiplicacion = 0;
+    int resultReceivedDivision =0;
+    int acusesNecesarios = 2;
+
     public ServerSocket create(int ports){
-        for (int port= ports;port < 7000; port++) {
+        for (int port= ports;port < 7000; port+= 5) {
             try {
                 return new ServerSocket(port);
             } catch (IOException ex) {
@@ -86,230 +126,293 @@ public class Controller implements Initializable {
         }
         try {
             // if the program gets here, no port in the range was found
-            throw new IOException("No hay puerto disponible para el ss");
+            throw new IOException("no free port found");
         } catch (IOException ex) {
             Logger.getLogger(CalculadoraCliente.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
 
+    static void DuplicateServer()
+    {
+        System.out.println("Pido duplicacion XD");
+        String program_to_run = "";
+        File temp = new File(my_path + general_folder);
+        int i = 1;
+        while (temp.exists())
+        {
+            temp = new File(my_path + general_folder + i);
+            i++;
+        }
+        i--;
+        try {
+            copyDirectory(new File(my_path + my_folder), temp, false);
+            program_to_run = my_path + general_folder + i + "\\CalculadoraServidor.jar";
+            System.out.println("PROGRAM TO RUN: " + program_to_run);
+            //Runtime.getRuntime().exec(new String[] {"java", "-jar", program_to_run, "Echo", general_folder+ i });
+            Runtime.getRuntime().exec("cmd /c start cmd.exe /K \"cd D:\\Documentos\\UniversidadPanamericana\\Semestres\\Computo Distribuido\\Proyecto\\Proyecto_Calculadora_ArandaMejiaBrianAntonio\\out\\artifacts\\ && java -jar CalculadoraServidor"+i+"\\CalculadoraServidor.jar\"");
+            //Runtime.getRuntime().exec("cmd /c start /K \"cd D:\\Documentos\\UniversidadPanamericana\\Semestres\\Computo Distribuido\\Proyecto\\Proyecto_Calculadora_ArandaMejiaBrianAntonio\\out\\artifacts\\ && java -jar CalculadoraServidor"+i+"\\CalculadoraServidor.jar\"");
+
+        }catch (IOException ex){
+            System.out.println("ERROR DUPLICATING SERVER");
+        }
+    }
+
+    static String sha1(String input) throws NoSuchAlgorithmException {
+        MessageDigest mDigest = MessageDigest.getInstance("SHA1");
+        byte[] result = mDigest.digest(input.getBytes());
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < result.length; i++) {
+            sb.append(Integer.toString((result[i] & 0xff) + 0x100, 16).substring(1));
+        }
+
+        return sb.toString();
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        //Abrimos server socket para el cliente
+        try {
+            hashSHA1 =   sha1(String.valueOf(System.currentTimeMillis()));
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        System.out.println("El hash SHA1 de esta calculadora cliente es: "+hashSHA1);
         ServerSocket clientServerSocket = create(6000);
-
+        localPort = clientServerSocket.getLocalPort();
         String message="";
-        final String HOST ="127.0.0.1";
-        //Iniciamos puerto en el 800, porque el nodo principal corre en ese puerto
+        final String localHost ="127.0.0.1";
         int nodePort =8000;
-        //Canal de entrada y salida
         DataInputStream inClientSocket;
         DataOutputStream outClientSocket;
-        //Bandera que busca la conexi�n
-        var Searching=true;
-        while(Searching){
+        var searching=true;
+        while(searching){
             try {
-                //Creamos socket en el puerto 8000
-                Socket clientSocket = new Socket(HOST,nodePort);
+                Socket clientSocket = new Socket(localHost,nodePort);
                 inClientSocket = new DataInputStream(clientSocket.getInputStream());
                 outClientSocket = new DataOutputStream(clientSocket.getOutputStream());
-                //Da a conocer al nodo que es cliente y le env�amos el puerto
-                outClientSocket.writeUTF("0001 "+clientServerSocket.getLocalPort());
-                //Mensaje que recibimos del nodo con el puerto
+
+                outClientSocket.writeUTF("Cliente "+clientServerSocket.getLocalPort());
+
                 message = inClientSocket.readUTF();
                 if (Integer.parseInt(message) !=0)
                 {
-                    Searching = false;
+                    searching = false;
                     break;
                 }
-                //Cerramos socket
                 clientSocket.close();
 
             } catch (IOException ex) {
-                System.out.println("No se pudo generar socket del cliente al nodo");
-            } //Se le suma 200 para ver si en ese puerto se est� escuchando otro nodo y conectarlos en el siguiente while
+                System.out.println("Fallo, error en la conexcion");
+            }
             nodePort= nodePort+200;
-            //Si excede de 60,0000 ya no se busca m�s
             if (nodePort>60000)
             {
-                Searching = false;
+                searching = false;
             }
         }
-        //Obtenemos puerto nodo-cliente
         goToNode = Integer.parseInt(message);
-        //Generamos el hilo para escuchar en ese puertos
-        ThreadReceiveMessage ReceiveMessage = new ThreadReceiveMessage(clientServerSocket);
-        Thread TRM = new Thread(ReceiveMessage);
-        TRM.start();
+
+        ReceiveThead ReceiveMessage = new ReceiveThead(clientServerSocket);
+        TReceiveMessage = new Thread(ReceiveMessage);
+        TReceiveMessage.start();
     }
 
 
     @FXML
-    private void BotonesNumerosOperadoresIgual(ActionEvent event) {
-        value=((Button)event.getSource()).getText();
-        aux.add(value);
-        System.out.println(value);
-        switch(value) {
-            //Case para cada boton
-            case "0":
-                acumulate = acumulate +"0";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "1":
-                acumulate = acumulate +"1";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "2":
-                acumulate = acumulate +"2";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "3":
-                acumulate = acumulate +"3";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "4":
-                acumulate = acumulate +"4";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "5":
-                acumulate = acumulate +"5";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "6":
-                acumulate = acumulate +"6";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "7":
-                acumulate = acumulate +"7";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "8":
-                acumulate = acumulate +"8";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "9":
-                acumulate = acumulate +"9";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case ".":
-                acumulate = acumulate +".";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "+":
-                makeDoubleNum = Double.parseDouble(acumulate);
-                operacion = "1000";
-                acumulate = acumulate + " + ";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "-":
-                makeDoubleNum = Double.parseDouble(acumulate);
-                operacion = "1001";
-                acumulate = acumulate + " - ";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "*":
-                makeDoubleNum = Double.parseDouble(acumulate);
-                operacion = "1100";
-                acumulate = acumulate + " * ";
-                ResultadoTotal.setText(acumulate);
-                break;
-            case "/":
-                makeDoubleNum = Double.parseDouble(acumulate);
-                operacion = "1101";
-                acumulate = acumulate + " / ";
-                ResultadoTotal.setText(acumulate);
-                break;
-            //Si damos igual, separamos el mensaje que son los botones que se presionan
-            case "Enviar":
-                String[] sendMessageSplit = acumulate.split(" ");
-                String num1 = sendMessageSplit[0];
-                String num2 = sendMessageSplit[2];
-                String numerosAOperar = num1 + " "+ num2;
-
-                Cifrar cifrado = new Cifrar();
-
-                String texto = stringClientCreationDate;
-                String huellaMD5Cliente = cifrado.md5(texto);
-                listClients.add(huellaMD5Cliente);
-                switch(operacion)
-                {
-                    case "1000": //Suma
-                        suma=suma+"\n"+ acumulate;
-                        String k = Integer.toString(incrementEvent);
-                        Connection(("1000 "+numerosAOperar+" evento"+k+" "+huellaMD5Cliente),'+');
-                        listEventSuma.add("Folio: "+ folioSuma+" "+"Evento: "+k+" "+"CC: 1000 "+" Numeros a Sumar: "+numerosAOperar+" Operacion: + "+" Hash MD5 del Cliente: "+huellaMD5Cliente);
-                        incrementEvent++;
-                        folioSuma++;
-                        break;
-                    case "1001": //Resta
-                        resta=resta+"\n"+ acumulate;
-                        String o = Integer.toString(incrementEvent);
-                        Connection(("1001 "+numerosAOperar+" evento"+o+" "+huellaMD5Cliente),'-');
-                        //lista_eventos_resta.add("1001"+" evento"+o+" "+numerosAOperar+" - "+ cifrado.sha1(texto)+ " "+huellaMD5Cliente);
-                        listEventResta.add("Folio: "+ folioResta+" "+"Evento: "+o+" "+"CC: 1001 "+" Numeros a Restar: "+numerosAOperar+" Operacion: - "+" Hash MD5 del Cliente: "+huellaMD5Cliente);
-                        incrementEvent++;
-                        folioResta++;
-                        break;
-                    case "1100": //Multiplicacion
-                        multiplicacion = multiplicacion +"\n"+ acumulate;
-                        String x = Integer.toString(incrementEvent);
-                        Connection(("1100 "+numerosAOperar+" evento"+x+" "+huellaMD5Cliente),'*');
-                        //lista_eventos_mult.add("1100"+" evento"+x+" "+numerosAOperar+" * "+ cifrado.sha1(texto)+ " "+huellaMD5Cliente);
-                        listEventMultiplicacion.add("Folio: "+ folioMultiplicacion+" "+"Evento: "+x+" "+"CC: 1100 "+" Numeros a Multiplicar: "+numerosAOperar+" Operacion: * "+" Hash MD5 del Cliente: "+huellaMD5Cliente);
-                        incrementEvent++;
-                        folioMultiplicacion++;
-                        break;
-                    case "1101": //Division
-                        division = division +"\n"+ acumulate;
-                        String y = Integer.toString(incrementEvent);
-                        Connection(("1101 "+numerosAOperar+" evento"+y+" "+huellaMD5Cliente),'/');
-                        listEventDivision.add("Folio: "+ folioDivision+" "+"Evento: "+y+" "+"CC: 1101 "+" Numeros a Dividir: "+numerosAOperar+" Operacion: / "+" Hash MD5 del Cliente: "+huellaMD5Cliente);
-                        incrementEvent++;
-                        folioDivision++;
-                        break;
-                }
-                acumulate ="";
-                ResultadoTotal.setText(acumulate);
-                break;
-
-            default:
-                break;
-        }
+    private void buttonNumberOne(ActionEvent event) {
+        acumulate = acumulate +"1";
+        ResultadoTotal.setText(acumulate);
     }
 
+    @FXML
+    private void buttonNumberTwo(ActionEvent event) {
+        acumulate = acumulate +"2";
+        ResultadoTotal.setText(acumulate);
+    }
 
+    @FXML
+    private void buttonNumberThree(ActionEvent event) {
+        acumulate = acumulate +"3";
+        ResultadoTotal.setText(acumulate);
+    }
 
+    @FXML
+    private void buttonNumberFour(ActionEvent event) {
+        acumulate = acumulate +"4";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonNumberFive(ActionEvent event) {
+        acumulate = acumulate +"5";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonNumberSix(ActionEvent event) {
+        acumulate = acumulate +"6";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonNumberSeven(ActionEvent event) {
+        acumulate = acumulate +"7";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonNumberEight(ActionEvent event) {
+        acumulate = acumulate +"8";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonNumberNine(ActionEvent event) {
+        acumulate = acumulate +"9";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonNumberZero(ActionEvent event) {
+        acumulate = acumulate +"0";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonPunto(ActionEvent event) {
+        acumulate = acumulate +".";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonAC(ActionEvent event) {
+        acumulate = "";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonSuma(ActionEvent event) {
+
+        makeDoubleNum = Double.parseDouble(acumulate);
+        operation = '1';
+        acumulate = acumulate + " + ";
+        ResultadoTotal.setText(acumulate);
+
+    }
+
+    @FXML
+    private void buttonResta(ActionEvent event) {
+
+        makeDoubleNum = Double.parseDouble(acumulate);
+        operation = '2';
+        acumulate = acumulate + " - ";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonMultiplicacion(ActionEvent event) {
+        makeDoubleNum = Double.parseDouble(acumulate);
+        operation = '3';
+        acumulate = acumulate + " * ";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void buttonDivision(ActionEvent event) {
+        makeDoubleNum = Double.parseDouble(acumulate);
+        operation = '4';
+        acumulate = acumulate + " / ";
+        ResultadoTotal.setText(acumulate);
+    }
+
+    @FXML
+    private void botonEnviar(ActionEvent event) {
+        String[] sendMessageSplit = acumulate.split(" ");
+        String num1 = sendMessageSplit[0];
+        String num2 = sendMessageSplit[2];
+        String numerosAOperar = num1 + " "+ num2;
+        Thread Time = null;
+        switch(operation)
+        {
+
+            case '1':
+                String k = Integer.toString(incrementEvent);
+                listSumas.add(new tempEvent(listSumas.size(),numerosAOperar));
+                Connection(("1 "+(listSumas.size()-1)+" "+ hashSHA1 +" "+numerosAOperar),'+');
+                listEventSuma.add("Folio: "+ folioSuma+" "+"Evento: "+k+" "+"CC: 1 "+" Numeros a Sumar: "+numerosAOperar+" Operacion: + "+" Hash MD5 del Cliente: "+hashSHA1);
+                incrementEvent++;
+                folioSuma++;
+                ContadorMaximoAcusesSumas contenTime_s = new ContadorMaximoAcusesSumas();
+                Time = new Thread(contenTime_s);
+                break;
+            case '2':
+                String o = Integer.toString(incrementEvent);
+                listRestas.add(new tempEvent(listRestas.size(),numerosAOperar));
+                Connection(("2 "+(listRestas.size()-1)+" "+ hashSHA1 +" "+numerosAOperar),'-');
+                listEventResta.add("Folio: "+ folioResta+" "+"Evento: "+o+" "+"CC: 2 "+" Numeros a Restar: "+numerosAOperar+" Operacion: - "+" Hash MD5 del Cliente: "+hashSHA1);
+                incrementEvent++;
+                folioResta++;
+                ContadorMaximoAcusesRestas ContenTime_r = new ContadorMaximoAcusesRestas();
+                Time = new Thread(ContenTime_r);
+                break;
+            case '3':
+                String x = Integer.toString(incrementEvent);
+                listMultiplicaciones.add(new tempEvent(listMultiplicaciones.size(),numerosAOperar));
+                Connection(("3 "+(listMultiplicaciones.size()-1)+" "+ hashSHA1 +" "+numerosAOperar),'*');
+                listEventMultiplicacion.add("Folio: "+ folioMultiplicacion+" "+"Evento: "+x+" "+"CC: 3 "+" Numeros a Multiplicar: "+numerosAOperar+" Operacion: * "+" Hash MD5 del Cliente: "+hashSHA1);
+                incrementEvent++;
+                folioMultiplicacion++;
+                ContadorMaximoAcusesMultiplicaciones ContenTime_m = new ContadorMaximoAcusesMultiplicaciones();
+                Time = new Thread(ContenTime_m);
+                break;
+            case '4':
+                String y = Integer.toString(incrementEvent);
+                listDivisiones.add(new tempEvent(listDivisiones.size(),numerosAOperar));
+                Connection(("4 "+(listDivisiones.size()-1)+" "+ hashSHA1 +" "+numerosAOperar),'/');
+                listEventDivision.add("Folio: "+ folioDivision+" "+"Evento: "+y+" "+"CC: 4 "+" Numeros a Dividir: "+numerosAOperar+" Operacion: / "+" Hash MD5 del Cliente: "+hashSHA1);
+                incrementEvent++;
+                folioDivision++;
+                ContadorMaximoAcusesDivisiones Content_d = new ContadorMaximoAcusesDivisiones();
+                Time = new Thread(Content_d);
+                break;
+        }
+
+        Time.start();
+        acumulate ="";
+        ResultadoTotal.setText(acumulate);
+
+    }
     //funcion donde se recibe el resultado y el tipo de operaci�n
     public void Connection(String Total, char operacion)
     {
-        //inicializamos
-        String message="";
+        String mensaje="";
         final String HOST ="127.0.0.1";
-        DataInputStream inConnectNode;
-        DataOutputStream outConnectNode;
+        DataInputStream in;
+        DataOutputStream out;
+
+
 
         try {
-            //Generamos socket
-            Socket connectNode = new Socket(HOST, goToNode);
-            outConnectNode = new DataOutputStream(connectNode.getOutputStream());
-            //Total contiene n�mero de case, resultado,operaci�n
-            System.out.println(Total);
-            outConnectNode.writeUTF(Total);
+            Socket elsocket = new Socket(HOST,goToNode);
+            out = new DataOutputStream(elsocket.getOutputStream());
+
+            out.writeUTF(Total);
 
 
-            connectNode.close();
+            elsocket.close();
 
         } catch (IOException ex) {
-            System.out.println("No se genero socket");
+            System.out.println("Fallo, error en la conexcion");
         }
     }
 
-    public class ThreadReceiveMessage implements Runnable{
 
-        ServerSocket newClientCreated;
+    public class ReceiveThead implements Runnable{
 
-        public ThreadReceiveMessage(ServerSocket clientServerSocketCreated) {
-            this.newClientCreated = clientServerSocketCreated;
+        ServerSocket clientPort;
+
+        public ReceiveThead(ServerSocket Creado) {
+            this.clientPort = Creado;
         }
 
 
@@ -317,107 +420,584 @@ public class Controller implements Initializable {
         public void run() {
             while(true)
             {
-                Socket socketClientCreated;
+                Socket newSocketClient;
                 String message="";
                 try{
-                    System.out.println("Se acaba de conectar socket al server "+ newClientCreated.getLocalPort());
-                    socketClientCreated = newClientCreated.accept();
-                    DataInputStream in = new DataInputStream(socketClientCreated.getInputStream());
+                    System.out.println("Client is in port "+ clientPort.getLocalPort());
+                    newSocketClient = clientPort.accept();
+                    DataInputStream in = new DataInputStream(newSocketClient.getInputStream());
                     message = in.readUTF();
-                    System.out.println("Se recibi� mensaje del server: " + message);
-                    socketClientCreated.close();
+                    System.out.println(message);
+                    newSocketClient.close();
                 } catch (IOException ex) {
-                    System.out.println("Fallo la conexion");
+                    System.out.println("Fail in the connection");
                 }
-                String[] op = message.split(" ");
-                String finalOperation = op[0];
-                String finalNum1 = op[1];
-                String finalNum2 = op[2];
-                String finalAnswer = op[3];
-                String clientConnected = op[5];
-                //op[4] tiene el hash de los servidores
-                System.out.println("Hash de validacion del server conectado: " + op[4]);
-                //Pausamos el cliente un segundo para esperar los acuses totales
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {}
-                //Verificamos si la lista contiene acuses
-                if(listServers.isEmpty()) {
-                    listServers.add(op[4]);
-                    serverAcuses.add(op[4]);
-                }else {
-
-                    if(listServers.contains(op[4])) {
-                        serverAcuses.add(op[4]);
-
-                    }else {
-                        listServers.add(op[4]);
-                        serverAcuses.add(op[4]);
+                String[] messageSplit = message.split(" ");
+                int ajuste = Math.max(0, hashSHA1.length() - 4);
+                String anotherHashSHA1 = hashSHA1.substring(0, ajuste);
+                String contentCodeAnswers = messageSplit[0];
+                String validationHashSHA1 = messageSplit[2];
+                String firstNumber = messageSplit[3];
+                String secondNumber = messageSplit[4];
+                if(Integer.parseInt(contentCodeAnswers) >= 5 && (validationHashSHA1.equals(anotherHashSHA1)|| validationHashSHA1.equals(hashSHA1)))
+                {
+                    String showAnswerClient ="";
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                }
-                if(serverAcuses.size() >= 3 && listClients.contains(clientConnected)){
-                    //ResultSuma.appendText( "Acuses completos\n");
-                    System.out.println("Los acuses estan completos");
-                    System.out.println("Lista de servidores existentes: "+ listServers);
-                    System.out.println("Lista de foliaje de las sumas: "+ listEventSuma);
-                    System.out.println("Lista de foliaje de las restas: "+ listEventResta);
-                    System.out.println("Lista de foliaje de las multiplicaciones: "+ listEventMultiplicacion);
-                    System.out.println("Lista de foliaje de las divisiones: "+ listEventDivision);
-                    if(Integer.parseInt(op[0]) >= 5)
+                    //switch (messageSplit[0])
+                    switch (contentCodeAnswers)
                     {
-                        String finalResult ="";
-                        switch (finalOperation)
-                        {
-                            case "0111": //Resultados de la Suma
-                                finalResult = finalNum1 +" + "+  finalNum2 + " = " + finalAnswer;
-                                ResultSuma.appendText(finalResult + "\n");
-                                break;
-                            case "0110": //Resultados de la Resta
-                                finalResult = finalNum1 +" - "+  finalNum2+ " = " + finalAnswer;
-                                ResultResta.appendText(finalResult+ "\n");
-                                break;
-                            case "0011": //Resultados de la Multiplicacion
-                                finalResult = finalNum1 +" * "+  finalNum2+ " = " + finalAnswer;
-                                ResultMultiplicacion.appendText(finalResult+ "\n");
-                                break;
-                            case "1010": //Resultados de la Division
-                                finalResult = finalNum1 +" / "+  finalNum2+ " = " + finalAnswer;
-                                ResultDivivision.appendText(finalResult+ "\n");
-                                break;
-                        }
-                        // lista_servidores.clear();
-                        System.out.println("Lista de los hash MD5 de los acuses de los servidores: ");
-                        System.out.println(serverAcuses);
-                        serverAcuses.clear();
+                        case "5": //Resultado Suma
+                            showAnswerClient = firstNumber +" + "+  secondNumber + " = " + messageSplit[5];
+                            tempEvent S = listSumas.get(Integer.parseInt(messageSplit[1]));
+                            if(S.answer == -123)
+                            {
+                                S.answer = Double.parseDouble(messageSplit[5]);
+                                listSumas.set(Integer.parseInt(messageSplit[1]),S);
+                                if(acusesNecesarios >= 1 && resultReceivedSumas < acusesNecesarios)
+                                {
+                                    DuplicateServer();
+                                }
+                                if(resultReceivedSumas >= acusesNecesarios)
+                                {
+                                    System.out.println("Lista de foliaje de las sumas: "+ listEventSuma);
+                                    showAnswerOnClientSuma.appendText(showAnswerClient + "\n");
+                                }
+
+                            }
+                            break;
+                        case "6": //Resultado Resta
+                            showAnswerClient = firstNumber +" - "+  secondNumber + " = " + messageSplit[5];
+                            tempEvent B = listRestas.get(Integer.parseInt(messageSplit[1]));
+                            if(B.answer ==-123){
+                                B.answer = Double.parseDouble(messageSplit[5]);
+                                listRestas.set(Integer.parseInt(messageSplit[1]),B);
+                                if(acusesNecesarios >= 1 && resultReceivedRestas < acusesNecesarios)
+                                {
+                                    DuplicateServer();
+                                }
+                                if(resultReceivedRestas >= acusesNecesarios)
+                                {
+                                    System.out.println("Lista de foliaje de las restas: "+ listEventResta);
+                                    showAnswerOnClientResta.appendText(showAnswerClient+ "\n");
+                                }
+                            }
+                            break;
+                        case "7": //Resultado Multiplicacion
+                            showAnswerClient = firstNumber +" * "+  secondNumber + " = " + messageSplit[5];
+                            tempEvent C = listMultiplicaciones.get(Integer.parseInt(messageSplit[1]));
+                            if(C.answer ==-123){
+                                C.answer = Double.parseDouble(messageSplit[5]);
+                                listMultiplicaciones.set(Integer.parseInt(messageSplit[1]),C);
+                                if(acusesNecesarios >= 1 && resultReceivedMultiplicacion < acusesNecesarios)
+                                {
+                                    DuplicateServer();
+                                }
+                                if(resultReceivedMultiplicacion >= acusesNecesarios)
+                                {
+                                    System.out.println("Lista de foliaje de las multiplicaciones: "+ listEventMultiplicacion);
+                                    showAnswerOnClientMultiplicacion.appendText(showAnswerClient+ "\n");
+                                }
+
+                            }
+                            break;
+                        case "8": //Resultado Division
+                            showAnswerClient = firstNumber +" / "+  secondNumber + " = " + messageSplit[5];
+                            tempEvent D = listDivisiones.get(Integer.parseInt(messageSplit[1]));
+                            if(D.answer ==-123){
+                                D.answer = Double.parseDouble(messageSplit[5]);
+                                listDivisiones.set(Integer.parseInt(messageSplit[1]),D);
+                                if(acusesNecesarios >= 1 && resultReceivedDivision < acusesNecesarios)
+                                {
+                                    DuplicateServer();
+                                }
+                                if(resultReceivedDivision >= acusesNecesarios)
+                                {
+                                    System.out.println("Lista de foliaje de las divisiones: "+ listEventDivision);
+                                    showAnswerOnClientDivisiones.appendText(showAnswerClient+ "\n");
+                                }
+
+                            }
+                            break;
                     }
-                }else {
-                    System.out.println("Acuses incompletos");
-                    //ResultSuma.appendText( "Acuses incompletos\n");
-                    //Aqu� generamos otro servidor
-                    // Runtime runTime = Runtime.getRuntime();
-
-                    //String executablePath = "cmd /c start C:\\Users\\compi.exe";
-
-            	 /* try {
-					Process process = runTime.exec(executablePath);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}*/
                 }
-
-
 
             }
 
         }
 
     }
-    @FXML
-    private void BotonBorrar(ActionEvent event) {
-        ResultadoTotal.setText("");
-        acumulate = "";
+
+
+
+    public  class ContadorAcusesSuma implements Runnable{
+
+        boolean exit = true;
+        ServerSocket AcusesSuma;
+
+        ContadorAcusesSuma(ServerSocket AcusesSuma){
+            this.AcusesSuma = AcusesSuma;
+        }
+
+        @Override
+        public void run() {
+            for(int i = 0; i < ServersSumas.size(); i++)
+            {
+                Servers serversSuma = new Servers();
+                serversSuma.doesItAppear = false ;
+                serversSuma.Server = ServersSumas.get(i).Server;
+                ServersSumas.set(i,serversSuma);
+            }
+            while(exit){
+                Socket socketSuma;
+                String message="";
+
+                try{
+                    socketSuma = AcusesSuma.accept();
+                    DataInputStream inSocketSuma = new DataInputStream(socketSuma.getInputStream());
+                    message = inSocketSuma.readUTF();
+                    if(message.split(" ")[4].equals("1"))
+                    {
+                        resultReceivedSumas++;
+                        boolean A = false;
+                        System.out.println(message.split(" ")[1]);
+                        for(int i = 0; i < ServersSumas.size(); i++)
+                        {
+                            if(ServersSumas.get(i).Server.equals(message.split(" ")[1]))
+                            {
+                                ServersSumas.get(i).doesItAppear =true;
+                                A=true;
+                                break;
+                            }
+                        }
+                        if(!A)
+                        {
+                            Servers aux = new Servers();
+                            aux.doesItAppear =true;
+                            aux.Server = message.split(" ")[1];
+                            ServersSumas.add(aux);
+                        }
+                    }
+                    socketSuma.close();
+                } catch (IOException ex) {
+                    break;
+                }
+            }
+        }
+
     }
 
+    public class ContadorMaximoAcusesSumas implements Runnable
+    {
+
+        @Override
+        public void run() {
+            resultReceivedSumas = 0;
+            try {
+                long start = System.nanoTime();
+                ServerSocket maximoAcusesSuma = new ServerSocket(localPort+1);
+                ContadorAcusesSuma contar = new ContadorAcusesSuma(maximoAcusesSuma);
+                Thread ThreadContar = new Thread(contar);
+                ThreadContar.start();
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                maximoAcusesSuma.close();
+                maximoAcusesSuma=null;
+                System.out.println("Numero de acuses de suma: "+ resultReceivedSumas);
+                if(resultReceivedSumas < acusesNecesarios){
+                    System.out.println("No hay suficientes servidores de suma, vuelva a intentarlo");
+                    for(int i = 0; i < ServersSumas.size(); i++)
+                    {
+                        if (!ServersSumas.get(i).doesItAppear)
+                        {
+                            //Mandar a levantar
+                            int j=0;
+                            String wakeUpServer ="";
+                            while(j< ServersSumas.size())
+                            {
+                                if (ServersSumas.get(j).doesItAppear)
+                                {
+                                    wakeUpServer = ServersSumas.get(j).Server;
+                                    j= ServersSumas.size()+20;
+                                }
+                                j++;
+                            }
+                            WakeUp Fall = new WakeUp(ServersSumas.get(i).Server,wakeUpServer);
+                            Thread TWakeUp = new Thread(Fall);
+                            TWakeUp.start();
+                        }
+                    }
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+    }
+    public  class ContadorAcusesResta implements Runnable{
+
+        boolean exit = true;
+        ServerSocket Tickets;
+
+        ContadorAcusesResta(ServerSocket Tickets){
+            this.Tickets = Tickets;
+        }
+
+        @Override
+        public void run() {
+            for(int i = 0; i < ServersRestas.size(); i++)
+            {
+                Servers A = new Servers();
+                A.doesItAppear = false ;
+                A.Server = ServersRestas.get(i).Server;
+                ServersRestas.set(i,A);
+            }
+            while(exit){
+                Socket elsocket;
+                String Mensaje="";
+
+                try{
+                    elsocket = Tickets.accept();
+                    DataInputStream in = new DataInputStream(elsocket.getInputStream());
+                    Mensaje = in.readUTF();
+                    if(Mensaje.split(" ")[4].equals("1"))
+                    {
+                        resultReceivedRestas++;
+                        boolean A = false;
+                        System.out.println(Mensaje.split(" ")[1]);
+                        for(int i = 0; i < ServersRestas.size(); i++)
+                        {
+                            if(ServersRestas.get(i).Server.equals(Mensaje.split(" ")[1]))
+                            {
+                                ServersRestas.get(i).doesItAppear =true;
+                                A=true;
+                                break;
+                            }
+                        }
+                        if(!A)
+                        {
+                            Servers aux = new Servers();
+                            aux.doesItAppear =true;
+                            aux.Server = Mensaje.split(" ")[1];
+                            ServersRestas.add(aux);
+                        }
+                    }
+                    System.out.println(Mensaje);
+                    elsocket.close();
+                } catch (IOException ex) {
+                    break;
+                }
+            }
+        }
+
+    }
+
+    public class ContadorMaximoAcusesRestas implements Runnable
+    {
+
+        @Override
+        public void run() {
+            resultReceivedRestas = 0;
+            try {
+                long start = System.nanoTime();
+                ServerSocket socketRestas = new ServerSocket(localPort+2);
+                ContadorAcusesResta contar1 = new ContadorAcusesResta(socketRestas);
+                Thread Tcontar = new Thread(contar1);
+                Tcontar.start();
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                socketRestas.close();
+                socketRestas=null;
+                System.out.println("Numero de acuses de resta: "+ resultReceivedRestas);
+                if(resultReceivedRestas < acusesNecesarios){
+                    System.out.println("No hay suficientes servidores de resta, vuelva a intentarlo");
+                }
+                for(int i = 0; i < ServersRestas.size(); i++)
+                {
+                    if (!ServersRestas.get(i).doesItAppear)
+                    {
+                        //Mandar a levantar
+                        int j=0;
+                        String ServUp ="";
+                        while(j< ServersRestas.size())
+                        {
+                            if (ServersRestas.get(j).doesItAppear)
+                            {
+                                ServUp = ServersRestas.get(j).Server;
+                                j= ServersRestas.size()+20;
+                            }
+                            j++;
+                        }
+                        WakeUp Fall = new WakeUp(ServersRestas.get(i).Server,ServUp);
+                        Thread Lev = new Thread(Fall);
+                        Lev.start();
+                    }
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+    }
+    public  class ContadorAcusesMultiplicacion implements Runnable{
+
+        boolean exit = true;
+        ServerSocket acusesMultiplicacion;
+
+        ContadorAcusesMultiplicacion(ServerSocket acusesMultiplicacion){
+            this.acusesMultiplicacion = acusesMultiplicacion;
+        }
+
+        @Override
+        public void run() {
+            for(int i = 0; i < ServersMultiplicaciones.size(); i++)
+            {
+                Servers A = new Servers();
+                A.doesItAppear = false ;
+                A.Server = ServersMultiplicaciones.get(i).Server;
+                ServersMultiplicaciones.set(i,A);
+            }
+            while(exit){
+                Socket elsocket;
+                String Mensaje="";
+
+                try{
+                    elsocket = acusesMultiplicacion.accept();
+                    DataInputStream in = new DataInputStream(elsocket.getInputStream());
+                    Mensaje = in.readUTF();
+                    if(Mensaje.split(" ")[4].equals("1"))
+                    {
+                        resultReceivedMultiplicacion++;
+                        boolean A = false;
+                        System.out.println(Mensaje.split(" ")[1]);
+                        for(int i = 0; i < ServersMultiplicaciones.size(); i++)
+                        {
+                            if(ServersMultiplicaciones.get(i).Server.equals(Mensaje.split(" ")[1]))
+                            {
+                                ServersMultiplicaciones.get(i).doesItAppear =true;
+                                A=true;
+                                break;
+                            }
+                        }
+                        if(!A)
+                        {
+                            Servers aux = new Servers();
+                            aux.doesItAppear =true;
+                            aux.Server = Mensaje.split(" ")[1];
+                            ServersMultiplicaciones.add(aux);
+                        }
+                    }
+                    System.out.println(Mensaje);
+                    elsocket.close();
+                } catch (IOException ex) {
+                    break;
+                }
+            }
+        }
+
+    }
+
+    public class ContadorMaximoAcusesMultiplicaciones implements Runnable
+    {
+
+        @Override
+        public void run() {
+            resultReceivedMultiplicacion = 0;
+            try {
+                long start = System.nanoTime();
+                ServerSocket socketMultipliacion = new ServerSocket(localPort+3);
+                ContadorAcusesMultiplicacion contar = new ContadorAcusesMultiplicacion(socketMultipliacion);
+                Thread Vamoaver = new Thread(contar);
+                Vamoaver.start();
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                socketMultipliacion.close();
+                socketMultipliacion=null;
+                System.out.println("Numero de acuses de multiplicacion: "+ resultReceivedMultiplicacion);
+                if(resultReceivedMultiplicacion < acusesNecesarios){
+                    System.out.println("No hay suficientes servidores de multiplicacion, vuelva a intentarlo");
+                }
+                for(int i = 0; i < ServersMultiplicaciones.size(); i++)
+                {
+                    if (!ServersMultiplicaciones.get(i).doesItAppear)
+                    {
+                        //Mandar a levantar
+                        int j=0;
+                        String ServUp ="";
+                        while(j< ServersMultiplicaciones.size())
+                        {
+                            if (ServersMultiplicaciones.get(j).doesItAppear)
+                            {
+                                ServUp = ServersMultiplicaciones.get(j).Server;
+                                j= ServersMultiplicaciones.size()+20;
+                            }
+                            j++;
+                        }
+                        WakeUp Fall = new WakeUp(ServersMultiplicaciones.get(i).Server,ServUp);
+                        Thread Lev = new Thread(Fall);
+                        Lev.start();
+                    }
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+    }
+    public  class ContadorAcusesDivision implements Runnable{
+
+        boolean exit = true;
+        ServerSocket acusesDivision;
+
+        ContadorAcusesDivision(ServerSocket acusesDivision){
+            this.acusesDivision = acusesDivision;
+        }
+
+        @Override
+        public void run() {
+            for(int i = 0; i < ServersDivisiones.size(); i++)
+            {
+                Servers A = new Servers();
+                A.doesItAppear = false ;
+                A.Server = ServersDivisiones.get(i).Server;
+                ServersDivisiones.set(i,A);
+            }
+            while(exit){
+                Socket elsocket;
+                String Mensaje="";
+
+                try{
+                    elsocket = acusesDivision.accept();
+                    DataInputStream in = new DataInputStream(elsocket.getInputStream());
+                    Mensaje = in.readUTF();
+                    if(Mensaje.split(" ")[4].equals("1"))
+                    {
+                        resultReceivedDivision++;
+                        boolean A = false;
+                        System.out.println(Mensaje.split(" ")[1]);
+                        for(int i = 0; i < ServersDivisiones.size(); i++)
+                        {
+                            if(ServersDivisiones.get(i).Server.equals(Mensaje.split(" ")[1]))
+                            {
+                                ServersDivisiones.get(i).doesItAppear =true;
+                                A=true;
+                                break;
+                            }
+                        }
+                        if(!A)
+                        {
+                            Servers aux = new Servers();
+                            aux.doesItAppear =true;
+                            aux.Server = Mensaje.split(" ")[1];
+                            ServersDivisiones.add(aux);
+                        }
+                    }
+                    System.out.println(Mensaje);
+                    elsocket.close();
+                } catch (IOException ex) {
+                    break;
+                }
+            }
+        }
+
+    }
+
+    public class ContadorMaximoAcusesDivisiones implements Runnable
+    {
+
+        @Override
+        public void run() {
+            resultReceivedDivision = 0;
+            try {
+                long start = System.nanoTime();
+                ServerSocket socketDivisiones = new ServerSocket(localPort+4);
+                ContadorAcusesDivision contar = new ContadorAcusesDivision(socketDivisiones);
+                Thread Tcontar = new Thread(contar);
+                Tcontar.start();
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                socketDivisiones.close();
+                socketDivisiones=null;
+                System.out.println("Numero de acuses de division: "+ resultReceivedDivision);
+                if(resultReceivedSumas < acusesNecesarios){
+                    System.out.println("No hay suficientes servidores de division, vuelva a intentarlo");
+                }
+                for(int i = 0; i < ServersDivisiones.size(); i++)
+                {
+                    if (!ServersDivisiones.get(i).doesItAppear)
+                    {
+                        //Mandar a levantar
+                        int j=0;
+                        String ServUp ="";
+                        while(j< ServersDivisiones.size())
+                        {
+                            if (ServersDivisiones.get(j).doesItAppear)
+                            {
+                                ServUp = ServersDivisiones.get(j).Server;
+                                j= ServersDivisiones.size()+20;
+                            }
+                            j++;
+                        }
+                        WakeUp Fall = new WakeUp(ServersDivisiones.get(i).Server,ServUp);
+                        Thread Lev = new Thread(Fall);
+                        Lev.start();
+                    }
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+    }
+
+
+    public class WakeUp implements Runnable
+    {
+        String hashSHA1;
+        String isAlive;
+
+        WakeUp(String hashSHA1, String isAlive){
+            this.hashSHA1 = hashSHA1;
+            this.isAlive = isAlive;
+        }
+
+        @Override
+        public void run() {
+            String message="";
+            final String localHost ="127.0.0.1";
+            DataOutputStream outSocketWakeUp;
+
+
+
+            try {
+                Socket socketWakeUp = new Socket(localHost, goToNode);
+                outSocketWakeUp = new DataOutputStream(socketWakeUp.getOutputStream());
+
+                outSocketWakeUp.writeUTF("0 "+ hashSHA1 +" "+ isAlive);
+
+
+                socketWakeUp.close();
+
+            } catch (IOException ex) {
+                System.out.println("Fail in the connection");
+            }
+        }
+
+    }
 }
 

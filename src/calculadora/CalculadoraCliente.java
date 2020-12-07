@@ -13,7 +13,7 @@ public class CalculadoraCliente extends Application {
         try {
             Parent root = FXMLLoader.load(getClass().getResource("VistaCalculadora2.fxml"));
             Scene mainscene = new Scene(root);
-            primaryStage.setTitle("Cliente: Calculadora");
+            primaryStage.setTitle("Calculadora");
             primaryStage.setScene(mainscene);
             primaryStage.show();
         } catch(Exception e) {

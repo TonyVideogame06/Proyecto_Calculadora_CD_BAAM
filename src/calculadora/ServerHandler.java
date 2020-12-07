@@ -5,86 +5,130 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class ServerHandler implements Runnable{
 
-    public ServerSocket SS;//server socket
+    public ServerSocket serverSocket;
     int puerto_I;
     int Servidor;
 
     public ServerHandler(int Num_Nodo, int puerto_I, int Servidor) {
         try {
-            this.SS = new ServerSocket(Num_Nodo);
+            this.serverSocket = new ServerSocket(Num_Nodo);
         } catch (IOException ex) {
-            Logger.getLogger(NodeHandler.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("Fallo en la conexion");
         }
         this.puerto_I = puerto_I;
         this.Servidor = Servidor;
     }
 
-
-
     @Override
     public void run() {
-        System.out.println("Yo escucho al servidor de " +  Servidor);
+        System.out.println("Listen server: " +  Servidor);
+        String message="";
         while(true)
         {
-            Socket elsocket;
-            String Mensaje="";
-            String Resultado ="";
+            Socket messageSocket;
+
+            String Result ="";
             try{
-                System.out.println("Se conect� en:  "+SS.getLocalPort());
-                elsocket = SS.accept();
-                DataInputStream in = new DataInputStream(elsocket.getInputStream());
-                DataOutputStream out = new DataOutputStream(elsocket.getOutputStream());
-                Mensaje = in.readUTF();
-                System.out.println(Mensaje);
-                elsocket.close();
+                System.out.println("Connection with: "+ serverSocket.getLocalPort());
+                messageSocket = serverSocket.accept();
+                DataInputStream inMessageSocket = new DataInputStream(messageSocket.getInputStream());
+                message = inMessageSocket.readUTF();
+                System.out.println("Message from server: "+ message);
+                messageSocket.close();
             } catch (IOException ex) {
-                System.out.println("No se pudo conectar");
+                System.out.println("Fallo la conexion");
+                continue;
             }
-            try {
-                Socket Operar = new Socket("0.0.0.0",Servidor);
-                DataOutputStream outO = new DataOutputStream(Operar.getOutputStream());
-                DataInputStream inO = new DataInputStream(Operar.getInputStream());
-                outO.writeUTF(Mensaje);
-                Resultado = inO.readUTF();
-                Operar.close();
-
-            } catch (IOException ex) {
-                System.out.println("No se pudo conectar");
-            }
-            String Nodos ="";
-            try {
-                Socket s_request = new Socket("0.0.0.0",puerto_I);//pedimos nodos del socket
-                DataInputStream in = new DataInputStream(s_request.getInputStream());
-                DataOutputStream out = new DataOutputStream(s_request.getOutputStream());
-
-                out.writeUTF(Resultado);
-                Nodos = in.readUTF();
-                System.out.println(Nodos);
-                s_request.close();
-
-            } catch (IOException ex) {
-                System.out.println("No se pudo conectar");
-            }
-            System.out.println(Nodos);
-            String[] Nodo = Nodos.split(" ");
-            for (int  i = 0; i < Nodo.length;i++)
+            System.out.println(message);
+            if(Integer.parseInt(message.split(" ")[0]) < 5 && !message.split(" ")[0].equals("400"))
             {
                 try {
-                    Socket s = new Socket("0.0.0.0",Integer.parseInt(Nodo[i]));//creamos socket del server
-                    DataOutputStream salida = new DataOutputStream(s.getOutputStream());
-
-                    salida.writeUTF(Resultado);
-                    s.close();
+                    Socket Operation = new Socket("127.0.0.1",Servidor);
+                    DataOutputStream outOperation = new DataOutputStream(Operation.getOutputStream());
+                    DataInputStream inOperation = new DataInputStream(Operation.getInputStream());
+                    outOperation.writeUTF(message);
+                    Result = inOperation.readUTF();
+                    System.out.println(Result);
+                    Operation.close();
 
                 } catch (IOException ex) {
-                    System.out.println("No se pudo conectar");
+                    System.out.println("Fail in the connection");
+                    continue;
+                }
+                String[] resultSplit = Result.split(" ");
+                if(Integer.parseInt(resultSplit[0])!= 0)
+                {
+                    String Nodes ="";
+                    try {
+                        Socket askForNodes = new Socket("127.0.0.1",puerto_I);
+                        DataInputStream inAskForNodes = new DataInputStream(askForNodes.getInputStream());
+                        DataOutputStream outAskForNodes = new DataOutputStream(askForNodes.getOutputStream());
+
+                        outAskForNodes.writeUTF(Result);
+                        Nodes = inAskForNodes.readUTF();
+                        askForNodes.close();
+
+                    } catch (IOException ex) {
+                        System.out.println("Fail in the connection");
+                        continue;
+                    }
+                    String[] Node = Nodes.split(" ");
+                    for (int  i = 0; i < Node.length;i++)
+                    {
+                        try {
+                            Socket sendNode = new Socket("127.0.0.1",Integer.parseInt(Node[i]));
+                            DataOutputStream outSendNode = new DataOutputStream(sendNode.getOutputStream());
+                            System.out.println(Node[i]);
+                            outSendNode.writeUTF(Result);
+                            sendNode.close();
+
+                        } catch (IOException ex) {
+                            System.out.println("Fail in the connection");
+                            continue;
+                        }
+                    }
                 }
             }
+            else
+            {
+                if(!message.split(" ")[0].equals("400"))
+                {
+                    String anotherNode ="";
+                    System.out.println(message);
+                    try {
+                        Socket askForAnotherNode = new Socket("127.0.0.1",puerto_I);
+                        DataInputStream inAskForAnotherNode = new DataInputStream(askForAnotherNode.getInputStream());
+                        DataOutputStream outAskForAnotherNode = new DataOutputStream(askForAnotherNode.getOutputStream());
+
+                        outAskForAnotherNode.writeUTF(message);
+                        anotherNode = inAskForAnotherNode.readUTF();
+                        askForAnotherNode.close();
+
+                    } catch (IOException ex) {
+                        System.out.println("Fail in the connection");
+                        continue;
+                    }
+                    String[] anotherNodeSplit = anotherNode.split(" ");
+                    for (int  i = 0; i < anotherNodeSplit.length;i++)
+                    {
+                        try {
+                            Socket sendAnotherNode = new Socket("127.0.0.1",Integer.parseInt(anotherNodeSplit[i]));
+                            DataOutputStream outSendAnotherNode = new DataOutputStream(sendAnotherNode.getOutputStream());
+                            System.out.println(anotherNodeSplit[i]);
+                            outSendAnotherNode.writeUTF(message);
+                            sendAnotherNode.close();
+
+                        } catch (IOException ex) {
+                            System.out.println("Fail in the connection");
+                            continue;
+                        }
+                    }
+                }
+            }
+
         }
     }
 

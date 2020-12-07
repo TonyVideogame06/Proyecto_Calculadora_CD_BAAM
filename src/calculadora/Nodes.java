@@ -9,32 +9,31 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
-
 public class Nodes {
 
     static Vector<NodeHandler> nodeVector = new Vector<>();
     static Vector<ClientHandler> clientVector = new Vector<>();
     static Vector<ServerHandler> serverVector = new Vector<>();
-    static List<Integer> listPortsNodes = new ArrayList<>();
-    //static List<Integer> listPortsServers = new ArrayList<>();
+    static List<Integer> listPortNodes = new ArrayList<>();
+    static List<Integer> listPortServers = new ArrayList<>();
 
     static public ServerSocket create(int firstPort) throws IOException {
-        String host = "127.0.0.1";
         var flag = true;
         while(flag){
             if(firstPort < 65000){
                 try {
                     return new ServerSocket(firstPort);
                 } catch (IOException ex) {
-                    Socket socketCreation = new Socket(host,firstPort);
+                    Socket socketCreation = new Socket("127.0.0.1",firstPort);
                     DataInputStream inSocketCreation = new DataInputStream(socketCreation.getInputStream());
                     DataOutputStream outSocketCreation = new DataOutputStream(socketCreation.getOutputStream());
                     outSocketCreation.writeUTF("whoAmI");
                     String message = inSocketCreation.readUTF();
-                    switch(message)
+                    String[] messageSplit = message.split(" ");
+                    switch(messageSplit[0])
                     {
-                        case "0100": //Nodo
-                            listPortsNodes.add(firstPort);
+                        case "Nodo":
+                            listPortNodes.add(Integer.parseInt(messageSplit[1]));
                             break;
                         default:
                             System.out.println("Este puerto es basura");
@@ -54,31 +53,33 @@ public class Nodes {
 
     public static void main(String[] args) throws IOException {
         int client = -5;
-        int server= -5;
+        int server= 0;
         String option = "";
-        ServerSocket nodeServerSocket = create(8000);
-        int localPort = nodeServerSocket.getLocalPort();
+        ServerSocket nodePortServer = create(8000);
+        int localPort = nodePortServer.getLocalPort();
         String localHost ="127.0.0.1";
-        DataInputStream inNewNodeSocket;
+        //DataInputStream inNewNodeSocket;
         DataOutputStream outNewNodeSocket;
         int puertos = 8000;
+        int cont=1;
         while(localPort > puertos)
         {
             try {
                 Socket newNodeSocket = new Socket(localHost,puertos);
-                inNewNodeSocket = new DataInputStream(newNodeSocket.getInputStream());
+                //inNewNodeSocket = new DataInputStream(newNodeSocket.getInputStream());
                 outNewNodeSocket = new DataOutputStream(newNodeSocket.getOutputStream());
-                outNewNodeSocket.writeUTF("0100 "+localPort);
+                outNewNodeSocket.writeUTF("Nodo "+(localPort+cont));
                 newNodeSocket.close();
                 puertos = puertos +200;
             }catch (IOException ex) {
-                System.out.println("Fallo, error en la conexcion para los demas");
+                System.out.println("Fail in the connection with the others");
             }
+            cont++;
         }
 
-        for(int i = 0; i< listPortsNodes.size(); i++)
+        for(int i = 0; i< listPortNodes.size(); i++)
         {
-            NodeHandler newNodeThread = new NodeHandler(localPort+i+1,localPort, listPortsNodes.get(i)+ listPortsNodes.size());
+            NodeHandler newNodeThread = new NodeHandler(localPort+i+1,localPort, listPortNodes.get(i));
             Thread NNT = new Thread(newNodeThread);
             nodeVector.add(newNodeThread);
             NNT.start();
@@ -88,27 +89,28 @@ public class Nodes {
         {
             Socket universalNodeSocket;
             try {
-                System.out.println("Listen port: "+localPort);
-                universalNodeSocket = nodeServerSocket.accept();
+                System.out.println("Node connected");
+                universalNodeSocket = nodePortServer.accept();
                 DataInputStream inUniversalNodeSocket = new DataInputStream(universalNodeSocket.getInputStream());
                 DataOutputStream outUniversalNodeSocket = new DataOutputStream(universalNodeSocket.getOutputStream());
                 String universalMessage = inUniversalNodeSocket.readUTF();
-                System.out.println(universalMessage);
+                //System.out.println(universalMessage);
                 String[] universalMessageSplit = universalMessage.split(" ");
                 option = universalMessageSplit[0];
                 switch(option)
                 {
-                    case "0100": //Nodo
-                        listPortsNodes.add(Integer.parseInt(universalMessageSplit[1]));
-                        NodeHandler TreadNodeHandler = new NodeHandler(localPort+ listPortsNodes.size(),localPort,Integer.parseInt(universalMessageSplit[1]));
-                        Thread TNH = new Thread(TreadNodeHandler);
-                        nodeVector.add(TreadNodeHandler);
-                        TNH.start();
+                    case "Nodo": //Nodo
+                        listPortNodes.add(Integer.parseInt(universalMessageSplit[1]));
+                        NodeHandler NuevoHilo1 = new NodeHandler(localPort+ listPortNodes.size(),localPort,Integer.parseInt(universalMessageSplit[1]));
+                        Thread t1 = new Thread(NuevoHilo1);
+                        nodeVector.add(NuevoHilo1);
+                        t1.start();
                         break;
-                    case "whoAmI":
-                        outUniversalNodeSocket.writeUTF("0100");
+                    case "whoAmI": //Identificar nodo
+                        outUniversalNodeSocket.writeUTF("Nodo "+(localPort+cont));
+                        cont++;
                         break;
-                    case "0001": //Cliente
+                    case "Cliente":
                         if (client !=-5)
                         {
                             outUniversalNodeSocket.writeUTF("0");
@@ -116,144 +118,191 @@ public class Nodes {
                         {
                             client = Integer.parseInt(universalMessageSplit[1]);
                             outUniversalNodeSocket.writeUTF(""+(localPort+198));
-                            ClientHandler TreadClientHandler = new ClientHandler(localPort+198,localPort,Integer.parseInt(universalMessageSplit[1]));
-                            Thread TCH = new Thread(TreadClientHandler);
-                            clientVector.add(TreadClientHandler);
-                            TCH.start();
+                            ClientHandler Cliente = new ClientHandler(localPort+198,localPort,Integer.parseInt(universalMessageSplit[1]));
+                            Thread tCl = new Thread(Cliente);
+                            clientVector.add(Cliente);
+                            tCl.start();
                         }
                         break;
-                    case "0010": //Servidor
-                        if (server !=-5)
+                    case "Servidor":
+                        if (server >= 5)
                         {
                             outUniversalNodeSocket.writeUTF("0");
                         }else
                         {
-                            server = Integer.parseInt(universalMessageSplit[1]);
-                            outUniversalNodeSocket.writeUTF(""+(localPort+199));
-                            ServerHandler TreadServerHandler = new ServerHandler(localPort+199,localPort,Integer.parseInt(universalMessageSplit[1]));
-                            Thread TSC = new Thread(TreadServerHandler);
-                            serverVector.add(TreadServerHandler);
-                            TSC.start();
+                            listPortServers.add(localPort+server+190);
+                            outUniversalNodeSocket.writeUTF(""+(localPort+server+190));
+                            ServerHandler Servidor = new ServerHandler(localPort+server+190,localPort,Integer.parseInt(universalMessageSplit[1]));
+                            Thread tCl = new Thread(Servidor);
+                            serverVector.add(Servidor);
+                            tCl.start();
+                            server++;
                         }
                         break;
-                    case "1000": //Suma
+                    case "0":
+                        String X = "";
+                        for(int i = 0; i< listPortNodes.size(); i++)
+                        {
+                            X= X + listPortNodes.get(i) + " ";
+                        }
+
+                        if (server != 0)
+                        {
+                            for(int i = 0; i< listPortServers.size(); i++)
+                            {
+                                X= X + listPortServers.get(i) + " ";
+                            }
+                        }
+                        outUniversalNodeSocket.writeUTF(X);
+                        break;
+                    case "1": //Suma
                         String A = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            A= A + (listPortsNodes.get(i)+i+1) + " ";
+                            A= A + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+
+                        if (server != 0)
                         {
-                            A= A + (localPort + 199);
+                            for(int i = 0; i< listPortServers.size(); i++)
+                            {
+                                A= A + listPortServers.get(i) + " ";
+                            }
                         }
-                        System.out.println(A);
                         outUniversalNodeSocket.writeUTF(A);
                         break;
-                    case "1001": //Resta
+                    case "2": //Resta
                         String B = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            B= B + (listPortsNodes.get(i)+i+1) + " ";
+                            B= B + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+                        if (server != 0)
                         {
-                            B= B + (localPort + 199);
+                            for(int i = 0; i< listPortServers.size(); i++)
+                            {
+                                B= B + listPortServers.get(i) + " ";
+                            }
                         }
-                        System.out.println(B);
                         outUniversalNodeSocket.writeUTF(B);
                         break;
-                    case "1100": //Multiplicacion
+                    case "3": //Multiplicacion
                         String C = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            C= C + (listPortsNodes.get(i)+i+1) + " ";
+                            C= C + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+                        if (server != 0)
                         {
-                            C= C + (localPort + 199);
+                            for(int i = 0; i< listPortServers.size(); i++)
+                            {
+                                C= C + listPortServers.get(i) + " ";
+                            }
                         }
-                        System.out.println(C);
                         outUniversalNodeSocket.writeUTF(C);
                         break;
-                    case "1101": //Division
+                    case "4": //Division
                         String D = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            D= D + (listPortsNodes.get(i)+i+1) + " ";
+                            D= D + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+                        if (server != 0)
                         {
-                            D= D + (localPort + 199);
+                            for(int i = 0; i< listPortServers.size(); i++)
+                            {
+                                D= D + listPortServers.get(i) + " ";
+                            }
                         }
-                        System.out.println(D);
                         outUniversalNodeSocket.writeUTF(D);
                         break;
-                    case "0111": //Resultado de la Suma
-                        System.out.println("Llego el resultado de la suma para el cliente " + client);
+                    case "5": //Resultado Suma
                         String E = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            E= E + listPortsNodes.get(i) + " ";
+                            E= E + listPortNodes.get(i) + " ";
                         }
                         if (client != -5)
                         {
                             E= E + client;
                         }
-                        System.out.println(E);
                         outUniversalNodeSocket.writeUTF(E);
                         break;
-                    case "0110": //Resultado de la Resta
+                    case "6": //Resultado Resta
                         String F = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            F= F + (listPortsNodes.get(i)+i+1) + " ";
+                            F= F + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+                        if (client != -5)
                         {
                             F= F + client;
                         }
-                        System.out.println(F);
                         outUniversalNodeSocket.writeUTF(F);
                         break;
-                    case "0011": //Resultado de la Multiplicacion
+                    case "7": //Resultado Multiplicacion
                         String G = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            G= G + (listPortsNodes.get(i)+i+1) + " ";
+                            G= G + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+                        if (client != -5)
                         {
                             G= G + client;
                         }
-                        System.out.println(G);
                         outUniversalNodeSocket.writeUTF(G);
                         break;
-                    case "1010": //Resultado de la Division
+                    case "8": //Resultado Division
                         String H = "";
-                        for(int i = 0; i< listPortsNodes.size(); i++)
+                        for(int i = 0; i< listPortNodes.size(); i++)
                         {
-                            H= H + (listPortsNodes.get(i)+i+1) + " ";
+                            H= H + listPortNodes.get(i) + " ";
                         }
-                        if (server != -5)
+                        if (client != -5)
                         {
                             H= H + client;
                         }
-                        System.out.println(H);
                         outUniversalNodeSocket.writeUTF(H);
                         break;
+                    case "9": //Enviar a cliente
+                        int acliente = client;
+                        switch(universalMessageSplit[2])
+                        {
+                            case "1":
+                                acliente = client + 1;
+                                break;
+                            case "2":
+                                acliente = client + 2;
+                                break;
+                            case "3":
+                                acliente = client + 3;
+                                break;
+                            case "4":
+                                acliente = client + 4;
+                                break;
+                        }
+                        String I = "";
+                        for(int i = 0; i< listPortNodes.size(); i++)
+                        {
+                            I= I + listPortNodes.get(i) + " ";
+                        }
+                        if (client != -5)
+                        {
+                            I= I + acliente;
+                        }
+                        outUniversalNodeSocket.writeUTF(I);
+                        break;
+
                     default:
-                        System.out.println("No se identifico");
+                        System.out.println("Can't identify who is");
                         break;
                 }
 
             } catch (IOException ex) {
-                System.out.println("Fallo la conexion");
+                System.out.println("Fail in the connection");
             }
-            System.out.println(listPortsNodes);
         }
 
     }
-
-
 
 }
